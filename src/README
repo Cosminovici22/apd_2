@@ -1,0 +1,44 @@
+TRACKER - implementat in `tracker.c`
+
+Initial, tracker-ul asteapta sa primeasca hash-urile segmentelor fisierelor
+detinute de clienti. Acestia sunt marcati ca seeds pentru fisierele respective.
+Odata ce a primit aceste informatii de la ultimul client, tracker-ul anunta
+clientii ca pot incepe descarcarile.
+
+In cele ce urmeaza, tracker-ul comunica cu clientii prin trei tipuri de mesaje:
+1. Cerere de swarm a unui fisier, careia ii raspunde prin swarm-ul si hash-urile
+segmentelor fisierului si marcarea clientului ce a facut cererea ca peer;
+2. Informare ca un client a terminat descarcarea unui fisier, caz in care
+marcheaza clientul ca seed pentru fisierul respectiv;
+3. Informare ca un client a terminat descarcarea tuturor fisierelor, caz in care
+verifica daca toate descarcarile au fost efectuate pentru a le spune clientilor
+sa isi opreasca executia thread-ului de uplaod.
+
+
+CLIENT - implementat in `peer.c`
+
+Clientul incepe prin a citi metadatele fisierelor pe care le detine si a trimite
+hash-urilor segmentelor acestora catre tracker. Apoi, asteapta sa fie informat
+ca poate incepe descarcarea fisierelor pe care le doreste.
+
+Thread-ul de download parcurge fisierele dorite ciclic, trecand la urmatorul
+fisier imediat dupa descarcarea unui segment. De exemplu, pentru trei fisiere
+dorite, descarcarea are loc in ordinea:
+    (file 1, segment 1) -> (file 2, segment 1) -> (file 3, segment 1) ->
+    (file 1, segment 2) -> (file 2, segment 2) -> (file 3, segment 2) ->
+    (file 1, segment 3) etc.
+Clientul informeaza tracker-ul cand termina descarcarea unui fisier si cand
+termina descarcarea tuturor fisierelor, caz in care se sfarseste executia
+thread-ului de download.
+
+Un client distribuie cat mai echitabil descarcarile prin trimiterea cererilor de
+fisiere catre peer-i in ordinea crescatoare a numarului de upload-uri, pana cand
+unul raspunde afirmativ. Numarul de upload-uri al celorlalti clienti este cerut
+o data la 10 segmente descarcate, impreuna cu swarm-ul fisierelor dorite.
+
+Thread-ul de upload comunica cu tracker-ul si ceilalti clienti prin trei tipuri
+de mesaje:
+1. Cerere de numar de uploads;
+2. Cerere de segmente, careia ii raspunde afirmativ daca detine segmentul cerut;
+3. Cerere de oprire, venita de la tracker in urma finalizarii thread-ului de
+download a tuturor clientilor, inclusiv al clientului care primeste acest mesaj.
